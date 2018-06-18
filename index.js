@@ -6,14 +6,13 @@ const argv = require('yargs').argv;
 
 const endpoint = 'https://api.bitbucket.org/';
 const codeSearch = `2.0/teams/${argv.team}/search/code`;
-const occurenceTable = new Table({
-  head: ['Project', 'No. of occurrences']
-  , colWidths: [50, 25]
-  , chars: { 'top': '═' , 'top-mid': '╤' , 'top-left': '╔' , 'top-right': '╗'
-             , 'bottom': '═' , 'bottom-mid': '╧' , 'bottom-left': '╚' , 'bottom-right': '╝'
-             , 'left': '║' , 'left-mid': '╟' , 'mid': '─' , 'mid-mid': '┼'
-             , 'right': '║' , 'right-mid': '╢' , 'middle': '│' }
-});
+
+const CSV = 'csv';
+const TABLE = 'table';
+const JSON = 'json';
+
+const head = ['Project', 'No. of occurrences'];
+
 
 async function getData(query, page = 0, existingData = []) {
   try {
@@ -44,13 +43,22 @@ async function getData(query, page = 0, existingData = []) {
                        .match(/^.*repositories\/[^\/]*\/([^\/]*)/)[1])
       );
 
-      occurenceTable.push(
-        ...(_.map(updates, (v,k) => [k, v.length]))
-      );
+      const data = _.map(updates, (v,k) => [k, v.length]);
 
-      console.log(occurenceTable.toString());
+      if(argv.output === CSV) {
+        console.log(_.map([head, ...data], (el) => el.join(',')).join('\n'));
+      } else if (argv.output === TABLE){
+        const occurenceTable = new Table({head , colWidths: [50, 25]});
+        occurenceTable.push(...data)
+        console.log(occurenceTable.toString());
+      } else {
+        console.log(JSON.stringify(_.map(data, ([proj, num]) => ({
+          [head[0].toLowerCase()]: proj,
+          [head[1].toLowerCase().replace(/[^a-z]+/g, '_')]: num,
+        }))));
+      }
 
-      return updatedData;
+      return data;
     }
   } catch (err) {
     console.log(err.response);
